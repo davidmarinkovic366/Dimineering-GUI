@@ -4,17 +4,7 @@ from Dims import Dims
 # from const.constants import WIDTH, HEIGHT
 from const.constants import BROWN, WHITE, OUTLINE, BACKGROUND, PIECE_X_COLOR, PIECE_O_COLOR, MENU_BACKGROUND_COLOR, BUTTON_COLOR
 
-dims: Dims = Dims(6)
-
-# num = 8
-
-# rows = num
-# cols = num
-# dim = rows + 2
-# cell_size = WIDTH // dim
-# piece_long = 2 * cell_size - 2 *(cell_size // 10)
-# piece_short = cell_size - 2 *(cell_size // 10)
-# piece_offset = cell_size // 10
+dims: Dims = Dims(6)        # inicijalne dimenzije, za iscrtavanje menija
 
 pygame.init()
 
@@ -32,25 +22,18 @@ def main(dims: Dims) -> None:
     player: bool
     move_counter: int = 0
 
-    # x_first, table_size
-    res: tuple[bool, int] = init_game(WIN, clock, dims)
+    # x_first, table_size, other_dimensions_for_table
+    res: tuple[bool, int, Dims] = init_game(WIN, clock, dims)
     if res == None:
         pygame.quit()
 
     player = res[0]     # da li X igra prvi?
     dims = res[2]       # overridujemo dimenzije
-    # rows = res[1]
-    # cols = res[1]
-    # dim = rows + 2
-    # cell_size = WIDTH // dim
-    # piece_long = 2 * cell_size - 2 *(cell_size // 10)
-    # piece_short = cell_size - 2 *(cell_size // 10)
-    # piece_offset = cell_size // 10
-
-    # refresh(res[1])
 
     board: list[list[str]] = create_board(res[1])   # kreiramo tabelu u memoriji
     draw_board(WIN, dims)
+
+    # Petlja koja traje za vreme trajanja igre:
     while run:
 
         clock.tick(FPS)
@@ -72,10 +55,8 @@ def main(dims: Dims) -> None:
 
     pygame.quit()
 
-
-
 ###
-# Funkcija za odabir ko prvi igra, i kolika je velicina tabele:
+# Funkcija za odabir prvog igraca i dimenzije tabele tabele:
 # ###
 def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
 
@@ -111,6 +92,7 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
     y_text_rect.center = (dims.WIDTH // 2 + dims.cell_size + dims.cell_size // 2, dims.HEIGHT // 2 + dims.cell_size + dims.cell_size // 2)
     win.blit(y_text, y_text_rect)
 
+    # Ispitivanje korisnickog unosa ko je prvi igrac, X ili Y:
     while not got_player:
         clock.tick(FPS)
         for event in pygame.event.get():
@@ -119,7 +101,7 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
             
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
-                # da li je kliknuto na X?
+                # Da li je kliknuto na X?
                 if (pos[0] >= dims.WIDTH // 2 - 2 * dims.cell_size and pos[0] <= dims.WIDTH // 2 - dims.cell_size and pos[1] >= dims.HEIGHT // 2 + dims.cell_size and pos[1] <= dims.HEIGHT // 2 + 2 * dims.cell_size):
                     print('X selected!')
                     first_player = True
@@ -132,10 +114,13 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
 
         pygame.display.update()
     
-    # sad trazimo unos velicine tabele:
+    
+    # Brisanje prvog menija, odnosno, crtamo pozadinu preko svega, ne postoji stvar kao sto je
+    # Brisanje nacrtanih elementa u pygame
     win.fill(BACKGROUND)
 
-    # ako smo kliknuli na dugme za zatvaranje prozora, ne proveravamo dalje!
+    # Sad trazimo unos velicine tabele:
+    # Ako smo kliknuli na dugme za zatvaranje prozora, ne proveravamo dalje!
     if quit_event:
         return None
     
@@ -147,9 +132,9 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
     text_rect.center = (dims.WIDTH // 2, dims.HEIGHT // 4)
     win.blit(text, text_rect)
 
+
     # Rect za ispis unete velicine:
     # Ispis velicine moramo da uradimo unutar while petlje, jer moze da se desi da je dvocifrena, pa moramo da osvezimo prikaz:
-
     # Unutar ovog kvadrata ispisujemo velicinu:
     pygame.draw.rect(win, PIECE_X_COLOR, (dims.WIDTH // 2 - 2 * dims.cell_size - dims.cell_size // 2, dims.HEIGHT // 2 + dims.cell_size, 2 * dims.cell_size, dims.cell_size), 0, 5)
 
@@ -160,8 +145,10 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
     text_rect.center = (dims.WIDTH // 2 + dims.cell_size + dims.cell_size // 2, dims.HEIGHT // 2 + dims.cell_size + dims.cell_size // 2)
     win.blit(text, text_rect)
 
+    # Pomocna promenljiva, za ispitivanje zasto smo izasli iz petlje:
     quit_event = False
 
+    # Ispitivanje korisnickog unosa dimenzije tabele (moze misem i klikom na enter):
     while not got_size:
         clock.tick(FPS)
         for event in pygame.event.get():
@@ -203,22 +190,19 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
             if board_size <= 0:
                 got_size = False
 
-
         pygame.display.update()
 
-    # ako smo kliknuli na dugme za zatvaranje prozora, zatvaramo prozor i tjt:
+    # Ako smo kliknuli na dugme za zatvaranje prozora, zatvaramo prozor i tjt:
     if quit_event:
         return None
 
-    # inace, imamo sve, mozemo da pocnemo sa igrom:
-    dim = Dims(board_size)          # inicijalizujemo dimenzije
-    print(first_player, board_size) # stampa za proveru
+    # Inace, imamo sve, mozemo da pocnemo sa igrom:
+    dim = Dims(board_size)          # Inicijalizujemo dimenzije
+    print(first_player, board_size) # Stampa za proveru
 
     return (first_player, board_size, dim)
 
-
-
-
+# Kreiranje matrice dimenzije dim x dim u memoriji:
 def create_board(dim: int) -> list[list[str]]:
     table: list = list()
     for rw in range(0, dim):
@@ -227,10 +211,12 @@ def create_board(dim: int) -> list[list[str]]:
             table[rw].append(' ')
     return table
 
-
+# Crtanje inicijalnog stanja tabele na prozoru:
 def draw_board(win, dims: Dims):
+    # Pozadina
     win.fill(BACKGROUND)
 
+    # Iscrtavanje kvadratica tabele: 
     is_brown: bool = True
     for row in range(1, dims.rows + 1):
         if dims.rows % 2 == 0:
@@ -240,33 +226,40 @@ def draw_board(win, dims: Dims):
             is_brown = not is_brown
             pygame.draw.rect(win, color, (row * dims.cell_size, col * dims.cell_size, dims.cell_size, dims.cell_size))
     
-    # Up and down letter array:
+    # Gornji i donji tekst na tabeli:
     for i in range(1, dims.cols + 1):
         
+        # Inicijalizacija teksta koji se ispisuje:
         text = font.render(LETTER_ARRAY[i-1], True, OUTLINE, None)
         text_rect = text.get_rect()
 
+        # Ispis u gornjem redu:
         text_rect.center = (i * dims.cell_size + dims.cell_size // 2, dims.cell_size // 2)
         WIN.blit(text, text_rect)
 
+        # Ispis u donjem redu:
         text_rect.center = (i * dims.cell_size + dims.cell_size // 2, (dims.rows + 1) * dims.cell_size + dims.cell_size // 2)
         WIN.blit(text, text_rect)
 
-    # Left and right number array
+    # Levi i desni tekst na tabeli:
     num: int = 0
     for i in range(dims.rows, 0, -1):
 
+        # Inicijalizacija broja koji se ispisuje:
         text = font.render(str(num), True, OUTLINE, None)
         text_rect = text.get_rect()
         num = num + 1
 
+        # Ispis u levoj koloni:
         text_rect.center = ( dims.cell_size // 2, i * dims.cell_size + dims.cell_size // 2)
         WIN.blit(text, text_rect)
 
+        # Ispis u desnoj koloni:
         text_rect.center = ( (dims.cols + 1) * dims.cell_size + dims.cell_size // 2, i * dims.cell_size + dims.cell_size // 2)
         WIN.blit(text, text_rect)
 
-
+# Racunanje pozicije polja u memoriji na osnovu dimenzija prozora i pozicije prozora na koju je 
+# korisnik kliknuo:
 def get_cell_pos(clicked_pos, dims: Dims) -> tuple:
 
     x_temp = clicked_pos[0]
@@ -275,50 +268,66 @@ def get_cell_pos(clicked_pos, dims: Dims) -> tuple:
     x_pos: int = int(x_temp / dims.cell_size)
     y_pos: int = int(y_temp / dims.cell_size)
 
+    # Ukoliko smo kliknuli van okvira tabele, onda se vraca tuple(None, None) kao ne-validan potez:
+    # (Ne validan u pogledu pozicije na koju je kliknuto, postoji funkcija koja ispituje i validnost poteza
+    # u pogledu zauzetosti pozicije i dimenzije figure koja se postavlja);
     if (x_pos < 1 or y_pos < 1) or (x_pos > dims.rows or y_pos > dims.cols):
         return (None, None)
 
     return (dims.rows - y_pos, x_pos - 1)
 
-
+# Postavljanje figure na tablu / u memoriji i iscrtavanje na klijentskom prozoru;
 def set_figure(win, pos: tuple[int, int], player: bool, counter: int, table: list[list[str]], dims: Dims) -> bool: 
     
+    # Da li je potez validan u pogledu zauzetosti polja:
     res = check_move(player, table, pos[0], pos[1])
-    print(res)
+    
+    # FIXME: remove;
+    # print(res)
+
+    # Vracamo obavestenje da nismo postavili figuru na dato polje:
     if not res:
         return False
 
     # Inace mozemo da postavimo!
-    # Igra X:
+    # Postavljanje u slucaju da figuru postavlja igrac X:
     if player:
 
+        # Iscrtavanje figure igraca X sa pocetkom u datoj poziciji:
         pygame.draw.rect(win, PIECE_X_COLOR, ((pos[1] + 1) * dims.cell_size + dims.piece_offset, (dims.rows - pos[0] - 1) * dims.cell_size + dims.piece_offset, dims.piece_short, dims.piece_long), 0, 5)
-        # print('Drawing on: ', (pos[0] * CELL_SIZE + PIECE_OFFSET, pos[1] * CELL_SIZE + PIECE_OFFSET, PIECE_SHORT, PIECE_LONG))
 
+        # Ispis rednog broja poteza na vrh figure:
         text = font.render(str(counter), True, OUTLINE, None)
         text_rect = text.get_rect()
         text_rect.center = ((pos[1] + 1) * dims.cell_size + dims.piece_offset + dims.piece_short // 2, (dims.rows - pos[0] - 1) * dims.cell_size + dims.piece_offset + dims.piece_long // 2)
 
         win.blit(text, text_rect)
 
+        # Postavljanje figure u memoriji:
         table[pos[0]][pos[1]] = 'X'
         table[pos[0] + 1][pos[1]] = 'X'
+
+        # Vracamo odgovor da je figure uspesno postavljena:
         return True
 
     else:
-
+        # Postavljanje u slucaju da figuru postavlja igrac X:
+        
+        # Iscrtavanje figure igraca Y sa pocetkom u datoj poziciji:
         pygame.draw.rect(win, PIECE_O_COLOR, ((pos[1] + 1) * dims.cell_size + dims.piece_offset, (dims.rows - pos[0]) * dims.cell_size + dims.piece_offset, dims.piece_long, dims.piece_short), 0, 5)
-        # print('Drawing on: ', (pos[0] * CELL_SIZE + PIECE_OFFSET, pos[1] * CELL_SIZE + PIECE_OFFSET, PIECE_LONG, PIECE_SHORT))
 
+        # Ispis rednog broja poteza na vrh figure:
         text = font.render(str(counter), True, OUTLINE, None)
         text_rect = text.get_rect()
         text_rect.center = ((pos[1] + 1) * dims.cell_size + dims.piece_offset + dims.piece_long // 2, (dims.rows - pos[0]) * dims.cell_size + dims.piece_offset + dims.piece_short // 2)
 
         win.blit(text, text_rect)
 
+        # Postavljanje figure u memoriji:
         table[pos[0]][pos[1]] = 'O'
         table[pos[0]][pos[1] + 1] = 'O'
 
+        # Vracamo odgovor da je figure uspesno postavljena:
         return True
 
     # FIXME: izbrisi, ne moze ovde da dodje svakako;
@@ -328,40 +337,35 @@ def set_figure(win, pos: tuple[int, int], player: bool, counter: int, table: lis
 # Proverava da li je moguce postaviti figuru datog igraca na datu poziciju:
 def check_move(player: bool, table: list[list[str]], x: int, y: int) -> bool:
 
-    # TODO: Provera da li je indeks koji smo uneli uopste moguc za datu matricu:
+    # Provera da li je indeks koji smo uneli uopste moguc za datu matricu:
     if (x < 0 or x >= len(table)) or (y < 0 or y >= len(table)):
-        # print("Invalid index for position! Please try again!")
         return False
 
     if player:  
         # Za slucaj da trenutno treba da igra X: 
-        # TODO: Provera edge-case-ova da li je moguce postavljanje na datoj poziciji za igraca X:
+        # Provera edge-case-ova da li je moguce postavljanje na datoj poziciji za igraca X:
         # Da je x barem 2 polja manji od max visine tabele? Kako bi stala figura koja je visine 2, duzine 1
         if x > len(table) - 2:
-            # print("Invalid index for position! Please try again!")
             return False
 
-        # TODO: Provera da li su pozicije uopste slobodne za igraca O:
+        # Provera da li su pozicije uopste slobodne za igraca O:
         if table[x][y] == ' ' and table[x+1][y] == ' ':
             return True
         else:
-            # print("Invalid move, position is already occupied!")
             return False
 
     else:   
         # Za slucaj da trenutno treba da igra O:
 
-        # TODO: Provera edge-case-ova da li je moguce postavljanje na datoj poziciji za igraca O:
+        # Provera edge-case-ova da li je moguce postavljanje na datoj poziciji za igraca O:
         # Da je y barem 2 polja manji od max duzine tabele? Kako bi stala figura koja je visine 1, duzine 2
         if y > len(table) - 2:
-            # print("Invalid index for position! Please try again!")
             return False
 
-        # TODO: Provera da li su pozicije uopste slobodne za igraca X:
+        # Provera da li su pozicije uopste slobodne za igraca X:
         if table[x][y] == ' ' and table[x][y+1] == ' ':
             return True
         else:
-            # print("Invalid move, position is already occupied!")
             return False
 
 main(dims)
