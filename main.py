@@ -1,4 +1,5 @@
 import pygame
+import copy
 from Dims import Dims
 
 # from const.constants import WIDTH, HEIGHT
@@ -367,5 +368,131 @@ def check_move(player: bool, table: list[list[str]], x: int, y: int) -> bool:
             return True
         else:
             return False
+
+# Stanje u grafu predstavljamo preko matrice stanja, e sad, zbog limitacije da matrica ne moze da bude 
+# kljuc u dict objektu, moramo nekako drugacije da predstavimo matricu, pa je string jedno od resenja koje
+# mozemo da iskoristimo;
+
+# Pretvara matricu u string:
+def matrix_to_string(mat: list[list[str]],  rows: int, cols: int) -> str:
+    data: str = ''
+    for i in range(0, rows):
+        for j in range(0, cols):
+            data += mat[i][j]
+
+    return data
+
+# Pretvara string u matricu zadatih dimenzija:
+def string_to_matrix(str: str, rows: int, cols: int) -> list[list[str]]:
+    mat = list()
+    for i in range(0, rows):
+        mat.append(list())
+        for j in range(0, cols):
+            mat[i].append(str[i * rows + j])
+    
+    return mat
+
+# Generisemo sva moguca stanja u koja moze da predje tabela na osnuvo prosledjenog stanja
+# i informacije ko sledeci igra;
+# [player == True]  -> X 
+# [player == False] -> O
+def possible_states(table: list[list[str]], dim: int, player: bool) -> list[list[list[str]]] or None:
+    # Cuvamo sva moguca stanja u koja moze da predje trenutno stanje:
+    states: list = list()
+
+    # Pokusavamo da postavimo figuru na svaku mogucu poziciju:
+    for x in range(0, dim):
+        for y in range(0, dim):
+            if table[x][y] == ' ' and check_move(player, table, x, y):
+                
+                # Kopiramo tabelu, kako bi mogli da nastavimo sa ispitivanjem: 
+                new_table: list[list[str]] = copy.deepcopy(table)
+                
+                # Postavljamo odgovarajucu figuru na zadatu poziciju:
+                if player:
+                    new_table[x][y] = 'X'
+                    new_table[x+1][y] = 'X'
+                else:
+                    new_table[x][y] = 'O'
+                    new_table[x][y+1] = 'O'
+
+                # Dodajemo stanje u listu mogucih:
+                states.append(new_table)
+    
+    if states:
+        return states
+    else:
+        return None
+
+# Funkcija za procenu stanja;
+# Ideja je da je stanje bolje ukoliko protivniku ostavlja manje mogucih poteza, odnosno,
+# smanjujemo mu sanse da nama ostavi manje mesta:
+# Sto manja vrednost, to bolje stanje za trenutnog igraca!
+def evaluate_state(state: list[list[str]], dim: int, next_player: bool) -> int:
+
+    # Brojimo koliko mogucih stanja nakon postavljanja nase figure ima protivnik:
+    state_counter: int = 0
+    for x in range(0, dim):
+        for y in range(0, dim):
+            if state[x][y] == ' ' and check_move(next_player, state, x, y):
+                state_counter += 1
+    
+    return state_counter
+
+# Funkcija koja vraca najbolje moguce stanje od liste prosledjenih stanja:
+def max_state(states_list: list[list[list[str]]], dim: int, current_player: bool) -> list[list[str]]:
+
+    # Recimo da je prvo stanje najbolje, zbog uporedjivanja:
+    max_state: list[list[str]] = states_list[0] # uzimamo prvi kao najbolji
+    max_state_val = evaluate_state(max_state, dim, not current_player)
+
+    # Prolazimo kroz sva moguca stanja, i uporedjujemo sa najboljim:
+    for st in states_list:
+        curr_state_val: int = evaluate_state(st, dim, not current_player)
+        # Ukoliko neko stanje ima manju vrednost od trenutnog najboljeg stanja, onda to stanje postaje
+        # novo najbolje stanje;
+        if curr_state_val < max_state_val:
+            max_state = st
+            max_state_val = curr_state_val
+    
+    return max_state
+
+# Funkcija koja vraca najgore moguce stanje od liste prosledjenih stanja:
+def min_state(states_list: list[list[list[str]]], dim: int, current_player: bool) -> list[list[str]]:
+
+    # Recimo da je prvo stanje najgore, zbog uporedjivanja:
+    min_state: list[list[str]] = states_list[0]
+    min_state_val = evaluate_state(min_state, dim, not current_player)
+
+    # Prolazimo kroz sva moguca stanja, i uporedjujemo sa najgorim:
+    for st in states_list:
+        curr_state_val: int = evaluate_state(st, dim, not current_player)
+        # Ukoliko neko stanje ima vecu vrednost od trenutnog najgoreg stanja, onda to stanje postaje
+        # novo najgore stanje;
+        if curr_state_val > min_state_val:
+            min_state = st
+            min_state_val = curr_state_val
+
+    return min_state
+
+# Rekurzivna funkcija min-max:
+def min_max(state: list[list[str]], dim: int, depth: int, player: bool) -> list[list[str]]:
+
+    # Generisemo sva moguca stanja koja mozemo da odigramo:
+    state_list: list[list[list[str]]] = possible_states(state, dim, player)
+    # Ukoliko ja igram sledeci, trebam od svih mogucih stanja izaberem ono koje ce najvise da mi doprinese,
+    # a ukoliko igra protivnik, najvise mi odgovara da racunam da ce da on odigra ono koje mu najmanje doprinosi:
+    fun_state = max_state if player else min_state
+
+    # Ukoliko smo dosli na list, ili smo dosli do max dubine koju proveravamo, vracamo 
+    if depth == 0 or state_list == None:
+        return state
+    
+    # Pozivamo min-max za sva moguca stanja koja smo generisali na osnovu prosledjenog:
+    return fun_state([min_max(st, dim, depth - 1, not player) for st in state_list])
+
+
+
+
 
 main(dims)
