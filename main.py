@@ -1,5 +1,6 @@
 import pygame
 import copy
+import time
 from Dims import Dims
 
 # from const.constants import WIDTH, HEIGHT
@@ -42,27 +43,43 @@ def main(dims: Dims) -> None:
             if event.type == pygame.QUIT:
                 run = False
             
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            # Za slucaj da igra covek, cekamo prvo da klikne negde:
+            if event.type == pygame.MOUSEBUTTONDOWN and not player:
 
-                # Stampamo samo ako igra X:
-                if player:
-                    print('Best move: ', minmax(board, 2, player, (board, 0, 0, 0), (board, 10, 0, 0), dims.num, player))
-
-                print('You clicked on:', get_cell_pos(pygame.mouse.get_pos(), dims))
                 piece_set = False
+
+                # Proveravamo da li je kliknuo na neko polje na ekranu ili negde van table:
                 if not get_cell_pos(pygame.mouse.get_pos(), dims) == (None, None):
                     piece_set = set_figure(WIN, get_cell_pos(pygame.mouse.get_pos(), dims), player, move_counter, board, dims)
                 if piece_set:
                     player = not player
                     move_counter = move_counter + 1
+    
+            # Za slucaj da igra racunar, ne cekamo na nista
+            if player:
+
+                max_move = None
+
+                st = time.time()
+
+                max_move = min_max(board, player, 3, res[1])
+                
+                et = time.time()
+                elapsed_time = et - st
+                print('Best move: ', max_move[2], max_move[3])
+                print('Execution time: ', elapsed_time, 'secconds')
+
+                piece_set = False
+                piece_set = set_figure(WIN, (max_move[2], max_move[3]), player, move_counter, board, dims)
+
+                player = not player
+                move_counter = move_counter + 1
 
         pygame.display.update()
 
     pygame.quit()
 
-###
 # Funkcija za odabir prvog igraca i dimenzije tabele tabele:
-# ###
 def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
 
     win.fill(BACKGROUND)
@@ -286,9 +303,6 @@ def set_figure(win, pos: tuple[int, int], player: bool, counter: int, table: lis
     
     # Da li je potez validan u pogledu zauzetosti polja:
     res = check_move(player, table, pos[0], pos[1])
-    
-    # FIXME: remove;
-    # print(res)
 
     # Vracamo obavestenje da nismo postavili figuru na dato polje:
     if not res:
@@ -334,9 +348,6 @@ def set_figure(win, pos: tuple[int, int], player: bool, counter: int, table: lis
 
         # Vracamo odgovor da je figure uspesno postavljena:
         return True
-
-    # FIXME: izbrisi, ne moze ovde da dodje svakako;
-    # return True
 
 
 # Proverava da li je moguce postaviti figuru datog igraca na datu poziciju:
@@ -400,7 +411,13 @@ def string_to_matrix(str: str, rows: int, cols: int) -> list[list[str]]:
 # i informacije ko sledeci igra;
 # [player == True]  -> X 
 # [player == False] -> O
-def possible_states(table: list[list[str]], dim: int, player: bool) -> list[tuple[list[list[str], int, int]]] or None:
+def possible_states(table: list[list[str]], dim: int, player: bool) -> list[tuple[list[list[str]], int, int]] or None:
+    """
+    Funkcija koja generise listu svih mogucih stanja u koje mozemo da predjemo iz prosledjenog stanja:
+    \t*table: list[list[str]] - stanje na osnovu koga generisemo nova
+    \t*dim: int - dimenzija tabele
+    \t*player: bool - da li je na redu igrac X?
+    """
     # Cuvamo sva moguca stanja u koja moze da predje trenutno stanje:
     states: list = list()
 
@@ -428,177 +445,106 @@ def possible_states(table: list[list[str]], dim: int, player: bool) -> list[tupl
     else:
         return None
 
-# Funkcija za procenu stanja;
-# Ideja je da je stanje bolje ukoliko protivniku ostavlja manje mogucih poteza, odnosno,
-# smanjujemo mu sanse da nama ostavi manje mesta:
-# Sto manja vrednost, to bolje stanje za trenutnog igraca!
-# E sad, da bi radio min-max, vrednost koji proveravamo, odnosi se na to koliko je dobra za Max igraca:
-# val >= 1 - bolje za Max
-# val <= -1 bolje za Min
-def evaluate_state(state: list[list[str]], dim: int, next_player: bool, computer_play: bool) -> int:
+# Funkcija koja vrsi evaluaciju prosledjenog stanja tabele i igraca koji je sledeci na redu:
+# Sto manja vrednost, to bolje!
+def evaluate_state(state: list[list[str]], player: bool, dim: int) -> int:
+    """
+    Racunamo koliko ima mogucih poteza protivnik\n
+    state: list[list[str]] - tabela stanja koju proveravamo/ocenjujemo
+    player: bool - da li je igrac X na redu? (max fiksno)
+    dim: int - dimenzija tabele
+    """
 
-    # Brojimo koliko mogucih stanja nakon postavljanja nase figure ima protivnik:
-    state_counter: int = 0
-    # step = 1 if computer_play else -1
-    step = 1
-
+    state_count = dim * dim
     for x in range(0, dim):
         for y in range(0, dim):
-            if state[x][y] == ' ' and check_move(next_player, state, x, y):
-                state_counter += step
+            if state[x][y] == ' ' and check_move(player, state, x, y):
+                state_count -= 1
+    
+    return state_count
 
-    return state_counter
 
-# najbolji potez za Max igraca:
-def max_value(state, depth, alpha, beta, computer, dim, player, x_pos, y_pos):
+# Funkcija koju zovemo kada je u stablu pretrage red na max igraca:
+def max_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim: int, x_pos: int, y_pos: int) -> tuple[list[list[str]], int, int, int]:
+    """
+    Funkcija koju pozivamo u slucaju da je na redu igrac X (permanentno Max):
+    \t*state: list[list[str]] - stanje koje obradjujemo
+    \t*depth: int - dubina trenutnog stanja
+    \t*alpha: ??? - najbolji potez za X (Max)
+    \t*beta: ??? - najbolji potez za O (Min)
+    \t*player: bool - da li je igrac X (Max) na redu?
+    \t*dim: int - dimenzija tabele
+    \t*x_pos && y_pos: int - pozicije na kojima smo postavili figuru u prethodnom koraku (u stanju koje smo poslali u funkciju) # inicijalno None
+    """
+
+    # Da ne bi generisali bezveze ukoliko smo dosli do max dubine:
+    if depth == 0:
+        return (state, evaluate_state(state, player, dim), x_pos, y_pos)
+
+    # Izvlacimo sva moguca stanja u koja mozemo da predjemo iz trenutnog:
     state_list = possible_states(state, dim, player)
     
-    if depth == 0 or state_list == None:
-        return (evaluate_state(state, dim, player, computer), x_pos, y_pos)
-    
-    else:
-        res = max(list(map(lambda x: min_value(x[0], depth - 1, alpha, beta, computer, dim, not player, x[1], x[2]), state_list)), key = lambda y: y[0])
-        return res
-    # else:
-    #     for st in state_list:
-    #         alpha = max(alpha, min_value(st[0], depth - 1, alpha, beta, not computer, dim, not player, st[1], st[2]), key = lambda x: x[1])
-    #         if alpha[1] >= beta[1]:
-    #             return (evaluate_state(beta[0], dim, not player, not computer), x_pos, y_pos)
-    # return (evaluate_state(alpha[0], dim, player, computer), x_pos, y_pos)
+    # Ukoliko nema vise mogucih poteza, 
+    if state_list == None:
+        return (state, evaluate_state(state, player, dim), x_pos, y_pos)
 
-# NAJBOLJI potez za Min igraca...
-def min_value(state, depth, alpha, beta, computer, dim, player, x_pos, y_pos):
+    # Obradjujemo listu mogucih stanja:
+    best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
+    for st in state_list:
+        best_state = max(best_state, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        # if best_state[1] >= beta:
+        #     return tuple()
+
+    return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
+
+
+# Funkcija koju zovemo kada je u stablu pretrage red na min igraca:
+def min_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim: int, x_pos: int, y_pos: int) -> tuple[list[list[str]], int, int, int]:
+    """
+    Funkcija koju pozivamo u slucaju da je na redu igrac O (permanentno Min):
+    \t*state: list[list[str]] - stanje koje obradjujemo
+    \t*depth: int - dubina trenutnog stanja
+    \t*alpha: ??? - najbolji potez za X (Max)
+    \t*beta: ??? - najbolji potez za O (Min)
+    \t*player: bool - da li je igrac X (Max) na redu?
+    \t*dim: int - dimenzija tabele
+    \t*x_pos && y_pos: int - pozicije na kojima smo postavili figuru u prethodnom koraku (u stanju koje smo poslali u funkciju) # inicijalno None
+    """
+
+    # Da ne bi generisali bezveze ukoliko smo dosli do max dubine:
+    if depth == 0:
+        return (state, evaluate_state(state, player, dim), x_pos, y_pos)
+
+    # Izvlacimo sva moguca stanja u koja mozemo da predjemo iz trenutnog:
     state_list = possible_states(state, dim, player)
-
-    if depth == 0 or state_list == None:
-        return (state, evaluate_state(state, dim, player, computer), x_pos, y_pos)
     
+    # Ukoliko nema vise mogucih poteza, 
+    if state_list == None:
+        return (state, evaluate_state(state, player, dim), x_pos, y_pos)
+
+    # Obradjujemo listu mogucih stanja:
+    best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
+    for st in state_list:
+        best_state = min(best_state, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        # if best_state[1] >= beta:
+        #     return tuple()
+
+    return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
+
+
+# Pokretanje min-max algoritma, mada posto je igrac X (racunar) uvek max, poziva se samo max_value:
+def min_max(state: list[list[str]], player: bool, depth: int, dim: int) -> tuple[list[list[str]], int, int, int]:
+    """
+    Funkcija koju zovemo za inicijalizaciju min-max algoritma
+    \t*state: list[list[str]] - trenutno stanje tabele
+    \t*player: bool - da li je na redu igrac X (Max)
+    \t*depth: int - dubina do koje trazimo moguce prelazi
+    \t*dim: int - dimenzija tabele
+    """
+    if player:
+        return max_value(state, depth, 0, 0, player, dim, None, None)
     else:
-        res = min(list(map(lambda x: max_value(x[0], depth - 1, alpha, beta, computer, dim, not player, x[1], x[2]), state_list)), key = lambda y: y[0])
-        return res
-    # else:
-    #     for st in state_list:
-    #         beta = min(beta, max_value(st[0], depth - 1, alpha, beta, not computer, dim, not player, st[1], st[2]), key = lambda x: x[1])
-    #         if beta[1] <= alpha[1]:
-    #             return (evaluate_state(alpha[0], dim, not player, not computer), x_pos, y_pos)
-    # return (evaluate_state(beta[0], dim, player, computer), x_pos, y_pos) 
-
-# Racunar je konstantno max igrac, bilo da je on x ili o, mi smo o
-def minmax(state, depth, computer_move, alpha, beta, dim, player):
-    if computer_move:
-        return max_value(state, depth, alpha, beta, computer_move, dim, player, None, None)
-    else:
-        return min_value(state, depth, alpha, beta, computer_move, dim, player, None, None)
-
-# # Funkcija koja vraca najbolje moguce stanje od liste prosledjenih stanja:
-# def max_state(states_list: list[list[list[str]]], dim: int, current_player: bool) -> tuple[list[list[str]], int]:
-
-#     # Recimo da je prvo stanje najbolje, zbog uporedjivanja:
-#     max_state: list[list[str]] = states_list[0] # uzimamo prvi kao najbolji
-#     max_state_val = evaluate_state(max_state, dim, not current_player)
-
-#     # Prolazimo kroz sva moguca stanja, i uporedjujemo sa najboljim:
-#     for st in states_list:
-#         curr_state_val: int = evaluate_state(st[0], dim, not current_player)
-#         # Ukoliko neko stanje ima manju vrednost od trenutnog najboljeg stanja, onda to stanje postaje
-#         # novo najbolje stanje;
-#         if curr_state_val < max_state_val:
-#             max_state = st[0]
-#             max_state_val = curr_state_val
-    
-#     # Vracamo najbolje stanje, i njegovu procenu:
-#     return (max_state, max_state_val)
-
-
-# # Funkcija koja vraca najgore moguce stanje od liste prosledjenih stanja:
-# def min_state(states_list: list[list[list[str]]], dim: int, current_player: bool) -> tuple[list[list[str]], int]:
-
-#     # Recimo da je prvo stanje najgore, zbog uporedjivanja:
-#     min_state: list[list[str]] = states_list[0]
-#     min_state_val = evaluate_state(min_state, dim, not current_player)
-
-#     # Prolazimo kroz sva moguca stanja, i uporedjujemo sa najgorim:
-#     for st in states_list:
-#         curr_state_val: int = evaluate_state(st[0], dim, not current_player)
-#         # Ukoliko neko stanje ima vecu vrednost od trenutnog najgoreg stanja, onda to stanje postaje
-#         # novo najgore stanje;
-#         if curr_state_val > min_state_val:
-#             min_state = st
-#             min_state_val = curr_state_val
-
-#     # Vracamo najgore stanje, i njegovu procenu:
-#     return (min_state, min_state_val)
-
-
-# Za a-b odsecanje:
-# state: ----
-#            |-> list[list[str]]
-#            |----> x pos
-#            |-------> y
-
-# def max_val(state: tuple[list[list[str]], int, int], dim: int, depth: int, alpha: tuple[list[list[str]], int, int, int], beta: tuple[list[list[str]], int, int, int], player: bool) -> tuple[list[list[str]], int, int, int] or None:
-#     states_list = possible_states(state, dim, player)
-
-#     # Dosli smo do max dubine:
-#     if depth == 0 or states_list == None:
-#         return (state[0], evaluate_state(state, dim, player))
-#     else:
-#         for tmp_state in states_list:
-#             # print('Result for: [' + str(tmp_state[1]) + ',' + str(tmp_state[2]) + ']:')
-#             res = min_val(tmp_state[0], dim, depth - 1, alpha, beta, not player)
-#             # print(res)
-#             alpha = max(alpha, res, key = lambda x: x[1])
-#             if alpha[1] >= beta[1]:
-#                 return beta
-    
-#     return alpha
-
-
-# def min_val(state: list[list[str]], dim: int, depth: int, alpha: tuple[list[list[str]], int, int, int], beta: tuple[list[list[str]], int, int, int], player: bool) -> tuple[list[list[str]], int, int, int] or None:
-#     states_list = possible_states(state, dim, player)
-
-#     # Dosli smo do max dubine:
-#     if depth == 0 or states_list == None:
-#         return (state, evaluate_state(state, dim, player))
-#     else:
-#         for tmp_state in states_list:
-#             # print('Result for: [' + str(tmp_state[1]) + ', ' + str(tmp_state[2]) + ']:')
-#             res = max_val(tmp_state[0], dim, depth - 1, alpha, beta, not player)
-#             # print(res)
-#             beta = min(beta, res, key = lambda x: x[1])
-#             if beta[1] <= alpha[1]:
-#                 return alpha
-
-#     return beta
-
-
-# Rekurzivna funkcija min-max:
-# def min_max(state: list[list[str]], dim: int, depth: int, alpha: tuple[list[list[str]], int, int, int], beta: tuple[list[list[str]], int, int, int], player: bool) -> tuple[list[list[str]], int]:
-
-    # Ako je racunar na redu:
-    # if player:
-    #     return max_val(state, dim, depth, alpha, beta, player)
-    # else:
-    #     return min_val(state, dim, depth, alpha, beta, player)
-
-
-
-
-    # # Generisemo sva moguca stanja koja mozemo da odigramo:
-    # state_list: list[list[list[str]]] = possible_states(state, dim, player)
-    # # Ukoliko ja igram sledeci, trebam od svih mogucih stanja izaberem ono koje ce najvise da mi doprinese,
-    # # a ukoliko igra protivnik, najvise mi odgovara da racunam da ce da on odigra ono koje mu najmanje doprinosi:
-    # fun_state = max_state if player else min_state
-
-    # # Ukoliko smo dosli na list, ili smo dosli do max dubine koju proveravamo, vracamo 
-    # if depth == 0 or state_list == None:
-    #     return state
-    
-    # # Pozivamo min-max za sva moguca stanja koja smo generisali na osnovu prosledjenog:
-    # return fun_state([min_max(st, dim, depth - 1, not player) for st in state_list])
-
-
-
+        return min_value(state, depth, 0, 0, player, dim, None, None)
 
 
 main(dims)
