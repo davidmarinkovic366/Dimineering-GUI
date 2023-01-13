@@ -4,7 +4,7 @@ import time
 from Dims import Dims
 
 # from const.constants import WIDTH, HEIGHT
-from const.constants import BROWN, WHITE, OUTLINE, BACKGROUND, PIECE_X_COLOR, PIECE_O_COLOR, MENU_BACKGROUND_COLOR, BUTTON_COLOR
+from const.constants import BROWN, WHITE, OUTLINE, BACKGROUND, PIECE_X_COLOR, PIECE_O_COLOR, MENU_BACKGROUND_COLOR, WINNER_TEXT
 
 dims: Dims = Dims(6)        # inicijalne dimenzije, za iscrtavanje menija
 
@@ -54,9 +54,13 @@ def main(dims: Dims) -> None:
                 if piece_set:
                     player = not player
                     move_counter = move_counter + 1
+                    run = not is_end(player, board) 
+                    if not run:
+                        break
+
     
             # Za slucaj da igra racunar, ne cekamo na nista
-            if player:
+            if player and run:
 
                 max_move = None
 
@@ -74,8 +78,35 @@ def main(dims: Dims) -> None:
 
                 player = not player
                 move_counter = move_counter + 1
+                run = not is_end(player, board)
+                print("run:", run)
+                # if not run:
+                #     break
+
 
         pygame.display.update()
+
+    time.sleep(3)
+
+    # WIN.fill(BACKGROUND)
+    winer = "Human" if player else "Computer"
+
+    pygame.draw.rect(WIN, MENU_BACKGROUND_COLOR, (2, dims.HEIGHT // 2 - dims.cell_size // 2, dims.WIDTH - 4, dims.cell_size), 0, 5)
+    text = font.render("The winner is: " + winer, False, WINNER_TEXT, None)
+    text_rect = text.get_rect()
+    text_rect.center = (dims.WIDTH // 2, dims.HEIGHT // 2)
+    WIN.blit(text, text_rect)
+
+    pygame.display.update()
+
+    # print('izasli smo?')
+
+    exit_loop = True
+    while exit_loop:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit_loop = False
 
     pygame.quit()
 
@@ -384,6 +415,18 @@ def check_move(player: bool, table: list[list[str]], x: int, y: int) -> bool:
         else:
             return False
 
+
+def is_end(player: bool, table: list[list[str]]) -> bool:
+    """
+    Funkcija koja vraca vrednost true ukoliko nema vise poteza za trenutnog igraca:
+    """
+    for i in range(0, len(table)):
+        for j in range(0, len(table[i])):
+            if (table[i][j]) == ' ' and (check_move(player, table, i, j)):
+               return False
+    return True
+
+# FIXME: remove
 # Stanje u grafu predstavljamo preko matrice stanja, e sad, zbog limitacije da matrica ne moze da bude 
 # kljuc u dict objektu, moramo nekako drugacije da predstavimo matricu, pa je string jedno od resenja koje
 # mozemo da iskoristimo;
@@ -406,6 +449,8 @@ def string_to_matrix(str: str, rows: int, cols: int) -> list[list[str]]:
             mat[i].append(str[i * rows + j])
     
     return mat
+
+# FIXME: remove
 
 # Generisemo sva moguca stanja u koja moze da predje tabela na osnuvo prosledjenog stanja
 # i informacije ko sledeci igra;
@@ -491,11 +536,16 @@ def max_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
     # Obradjujemo listu mogucih stanja:
     best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
     for st in state_list:
+        # alpha = max(alpha, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        # if alpha[1] >= beta[1]:
+        #     # return (state, beta[1], st[1], st[2])
+        #     return beta
         best_state = max(best_state, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         # if best_state[1] >= beta:
         #     return tuple()
 
     return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
+    # return (state, alpha[1], alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
 
 
 # Funkcija koju zovemo kada je u stablu pretrage red na min igraca:
@@ -526,9 +576,14 @@ def min_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
     best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
     for st in state_list:
         best_state = min(best_state, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        # beta = min(beta, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        # if beta[1] <= alpha[1]:
+            # return alpha
         # if best_state[1] >= beta:
         #     return tuple()
-
+    
+    # return (state, beta[1], beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
+    # return beta
     return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
 
 
@@ -542,7 +597,7 @@ def min_max(state: list[list[str]], player: bool, depth: int, dim: int) -> tuple
     \t*dim: int - dimenzija tabele
     """
     if player:
-        return max_value(state, depth, 0, 0, player, dim, None, None)
+        return max_value(state, depth, -(dim * dim), (state, (dim * dim), 0, 0), player, dim, None, None)
     else:
         return min_value(state, depth, 0, 0, player, dim, None, None)
 
