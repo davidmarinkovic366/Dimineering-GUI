@@ -23,6 +23,7 @@ def main(dims: Dims) -> None:
     clock = pygame.time.Clock()
     player: bool
     move_counter: int = 0
+    computer_move: bool = False
 
     # x_first, table_size, other_dimensions_for_table
     res: tuple[bool, int, Dims] = init_game(WIN, clock, dims)
@@ -44,7 +45,7 @@ def main(dims: Dims) -> None:
                 run = False
             
             # Za slucaj da igra covek, cekamo prvo da klikne negde:
-            if event.type == pygame.MOUSEBUTTONDOWN and not player:
+            if event.type == pygame.MOUSEBUTTONDOWN and not computer_move:
 
                 piece_set = False
 
@@ -55,12 +56,14 @@ def main(dims: Dims) -> None:
                     player = not player
                     move_counter = move_counter + 1
                     run = not is_end(player, board) 
+                    computer_move = not computer_move
+
                     if not run:
                         break
 
     
             # Za slucaj da igra racunar, ne cekamo na nista
-            if player and run:
+            if computer_move and run:
 
                 max_move = None
 
@@ -85,12 +88,13 @@ def main(dims: Dims) -> None:
                 player = not player
                 move_counter = move_counter + 1
                 run = not is_end(player, board)
-                print("run:", run)
+                computer_move = not computer_move
+                # print("run:", run)
 
         pygame.display.update()
 
     # time.sleep(3)
-    winer = "Human" if player else "Computer"
+    winer = "Human" if computer_move else "Computer"
 
     pygame.draw.rect(WIN, MENU_BACKGROUND_COLOR, (2, dims.HEIGHT // 2 - dims.cell_size // 2, dims.WIDTH - 4, dims.cell_size), 0, 5)
     text = font.render("The winner is: " + winer, False, WINNER_TEXT, None)
