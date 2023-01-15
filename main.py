@@ -66,7 +66,7 @@ def main(dims: Dims) -> None:
 
                 st = time.time()
 
-                max_move = min_max(board, player, 1, res[1])
+                max_move = min_max(board, player, 3, res[1])
                 
                 et = time.time()
                 elapsed_time = et - st
@@ -75,6 +75,7 @@ def main(dims: Dims) -> None:
                 # print_matrix(max_move[0], res[1] - 1)
 
                 print('Best move: ', max_move[2], max_move[3])
+                print('Best table: ', max_move[0])
                 print('Move estimated price: ', max_move[1])
                 print('Execution time: ', elapsed_time, 'secconds')
 
@@ -549,14 +550,9 @@ def max_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
     for st in state_list:
         alpha = max(alpha, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         if alpha[1] >= beta[1] and check_move(player, state, beta[2], beta[3]):
-            # return (state, beta[1], st[1], st[2])
-            return beta
-        # best_state = max(best_state, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
-        # if best_state[1] >= beta:
-            # return tuple()
+            return (beta[0], evaluate_state(beta[0], player, dim), beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
 
-    # return (state_list[0], evaluate_state(state, player, dim), alpha[2], alpha[3])
-    return alpha
+    return (alpha[0], evaluate_state(alpha[0], player, dim), alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
     # return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
     # return (state, alpha[1], alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
 
@@ -591,13 +587,15 @@ def min_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
         # best_state = min(best_state, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         beta = min(beta, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         if beta[1] <= alpha[1] and check_move(player, state, alpha[2], alpha[3]):
-            return alpha
+            return (alpha[0], evaluate_state(alpha[0], player, dim), alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
         # if best_state[1] >= beta:
         #     return tuple()
     
     # return (state, beta[1], beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
     # return (state_list[0], evaluate_state(state, player, dim), beta[2], beta[3])
-    return beta
+    return (beta[0], evaluate_state(beta[0], player, dim), beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
+
+    # return beta
     # return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
 
 
