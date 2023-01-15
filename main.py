@@ -66,11 +66,16 @@ def main(dims: Dims) -> None:
 
                 st = time.time()
 
-                max_move = min_max(board, player, 3, res[1])
+                max_move = min_max(board, player, 1, res[1])
                 
                 et = time.time()
                 elapsed_time = et - st
+
+                # print('Best state: ')
+                # print_matrix(max_move[0], res[1] - 1)
+
                 print('Best move: ', max_move[2], max_move[3])
+                print('Move estimated price: ', max_move[1])
                 print('Execution time: ', elapsed_time, 'secconds')
 
                 piece_set = False
@@ -80,15 +85,10 @@ def main(dims: Dims) -> None:
                 move_counter = move_counter + 1
                 run = not is_end(player, board)
                 print("run:", run)
-                # if not run:
-                #     break
-
 
         pygame.display.update()
 
-    time.sleep(3)
-
-    # WIN.fill(BACKGROUND)
+    # time.sleep(3)
     winer = "Human" if player else "Computer"
 
     pygame.draw.rect(WIN, MENU_BACKGROUND_COLOR, (2, dims.HEIGHT // 2 - dims.cell_size // 2, dims.WIDTH - 4, dims.cell_size), 0, 5)
@@ -98,8 +98,6 @@ def main(dims: Dims) -> None:
     WIN.blit(text, text_rect)
 
     pygame.display.update()
-
-    # print('izasli smo?')
 
     exit_loop = True
     while exit_loop:
@@ -450,6 +448,13 @@ def string_to_matrix(str: str, rows: int, cols: int) -> list[list[str]]:
     
     return mat
 
+# def print_matrix(state: list[list[str]], dim) -> None:
+#     for x in range(dim, 0, -1):
+#         row_str: str = ""
+#         for y in range(0, dim, +1):
+#             row_str = state[x][y] + ' ' + row_str
+#         print(row_str)
+
 # FIXME: remove
 
 # Generisemo sva moguca stanja u koja moze da predje tabela na osnuvo prosledjenog stanja
@@ -500,11 +505,17 @@ def evaluate_state(state: list[list[str]], player: bool, dim: int) -> int:
     dim: int - dimenzija tabele
     """
 
-    state_count = dim * dim
+    # state_count = dim * dim
+    state_count = dim * dim if not player else 0
+    step = -1 if not player else 1
+    # state_count = 0
+    # step = 1
+
+    # state_count = 0
     for x in range(0, dim):
         for y in range(0, dim):
             if state[x][y] == ' ' and check_move(player, state, x, y):
-                state_count -= 1
+                state_count += step
     
     return state_count
 
@@ -534,17 +545,19 @@ def max_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
         return (state, evaluate_state(state, player, dim), x_pos, y_pos)
 
     # Obradjujemo listu mogucih stanja:
-    best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
+    # best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
     for st in state_list:
-        # alpha = max(alpha, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
-        # if alpha[1] >= beta[1]:
-        #     # return (state, beta[1], st[1], st[2])
-        #     return beta
-        best_state = max(best_state, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        alpha = max(alpha, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        if alpha[1] >= beta[1] and check_move(player, state, beta[2], beta[3]):
+            # return (state, beta[1], st[1], st[2])
+            return beta
+        # best_state = max(best_state, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         # if best_state[1] >= beta:
-        #     return tuple()
+            # return tuple()
 
-    return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
+    # return (state_list[0], evaluate_state(state, player, dim), alpha[2], alpha[3])
+    return alpha
+    # return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
     # return (state, alpha[1], alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
 
 
@@ -573,18 +586,19 @@ def min_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
         return (state, evaluate_state(state, player, dim), x_pos, y_pos)
 
     # Obradjujemo listu mogucih stanja:
-    best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
+    # best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
     for st in state_list:
-        best_state = min(best_state, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
-        # beta = min(beta, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
-        # if beta[1] <= alpha[1]:
-            # return alpha
+        # best_state = min(best_state, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        beta = min(beta, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
+        if beta[1] <= alpha[1] and check_move(player, state, alpha[2], alpha[3]):
+            return alpha
         # if best_state[1] >= beta:
         #     return tuple()
     
     # return (state, beta[1], beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
-    # return beta
-    return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
+    # return (state_list[0], evaluate_state(state, player, dim), beta[2], beta[3])
+    return beta
+    # return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
 
 
 # Pokretanje min-max algoritma, mada posto je igrac X (racunar) uvek max, poziva se samo max_value:
@@ -597,9 +611,9 @@ def min_max(state: list[list[str]], player: bool, depth: int, dim: int) -> tuple
     \t*dim: int - dimenzija tabele
     """
     if player:
-        return max_value(state, depth, -(dim * dim), (state, (dim * dim), 0, 0), player, dim, None, None)
+        return max_value(state, depth, (state, -1000, 0, 0), (state, 1000, 0, 0), player, dim, None, None)
     else:
-        return min_value(state, depth, 0, 0, player, dim, None, None)
+        return min_value(state, depth, (state, -1000, 0, 0), (state, 1000, 0, 0), player, dim, None, None)
 
 
 main(dims)
