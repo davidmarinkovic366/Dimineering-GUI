@@ -10,8 +10,9 @@ dims: Dims = Dims(6)        # inicijalne dimenzije, za iscrtavanje menija
 
 pygame.init()
 
+# Inicijalizacija py-game prozora koji se iscrtava korisniku:
 WIN = pygame.display.set_mode((dims.WIDTH, dims.HEIGHT))
-pygame.display.set_caption('Domineering!')
+pygame.display.set_caption('BaseDNK - Domineering!')
 font = pygame.font.Font('cascadiacode.ttf', 32)
 
 FPS: int = 60
@@ -25,18 +26,27 @@ def main(dims: Dims) -> None:
     move_counter: int = 0
     computer_move: bool = False
 
-    # x_first, table_size, other_dimensions_for_table
+    # Rezultat inicijalizacije, tuple koji se sastoji redom od podataka:
+    # da li je igrac X prvi na potezu?
+    # koja je dimenzija tabele?
+    # objekat koji cuva dimenzije koje se kasnije koriste prilikom crtanja, vezano za py-game;
+
     res: tuple[bool, int, Dims] = init_game(WIN, clock, dims)
+    
+    # Za slucaj da je korisnik prilikom inicijalizacije odustao od igre:
     if res == None:
         pygame.quit()
 
     player = res[0]     # da li X igra prvi?
-    dims = res[2]       # overridujemo dimenzije
+    dims = res[2]       # Nove dimenzije za iscrtavanje, koje se racunaju na osnovu korisnickog unosa dimenzije tabele;
 
-    board: list[list[str]] = create_board(res[1])   # kreiramo tabelu u memoriji
+    # Kreiramo tabelu u memoriji i iscrtavamo praznu tabelu korisniku:
+    board: list[list[str]] = create_board(res[1])   
     draw_board(WIN, dims)
 
     # Petlja koja traje za vreme trajanja igre:
+    # Sluzi za unos poteza, pozivanje min-max algoritma onda kada je na redu racunar, promenu narednog igraca,
+    # proveru da li je kraj igre i iscrtavanje postavljenih figura u korisnickom prikazu:
     while run:
 
         clock.tick(FPS)
@@ -53,11 +63,20 @@ def main(dims: Dims) -> None:
                 if not get_cell_pos(pygame.mouse.get_pos(), dims) == (None, None):
                     piece_set = set_figure(WIN, get_cell_pos(pygame.mouse.get_pos(), dims), player, move_counter, board, dims)
                 if piece_set:
+
+                    # Promena narednog igraca (min/max):
                     player = not player
+
+                    # Povecanje brojaca poteza:
                     move_counter = move_counter + 1
+
+                    # Provera da li smo dosli do kraja igre:
                     run = not is_end(player, board) 
+
+                    # Promena narednog igraca (covek/racunar):
                     computer_move = not computer_move
 
+                    # Specijalni slucaj da covek vise nema poteza, da se ne bi nakon izlaska iz ove if labele igrao i potez za racunar:
                     if not run:
                         break
 
@@ -65,35 +84,49 @@ def main(dims: Dims) -> None:
             # Za slucaj da igra racunar, ne cekamo na nista
             if computer_move and run:
 
+                # Odgovor min-max algoritma, u obliku tuple[table, heur, x_pos, y_pos]
+                # gde je 
+                # table - prikaz najboljeg stanja tabele za prosledjenog igraca
+                # heur - izracunara heuristika za krajnje stanje tabele
+                # x_pos - kolona u kojoj se nalazi pocetak figure
+                # y_pos - vrsta u kojoj se nalazi pocetak figure
+
                 max_move = None
 
+                # Startujemo tajmer pre pokretanja min-max algoritma:
                 st = time.time()
 
+                # Pozivamo min-max algoritam i cuvamo rezultat u promenljivu:
                 max_move = min_max(board, player, 3, res[1])
                 
+                # Duzina trajanja odabira poteza u sekundama:
                 et = time.time()
                 elapsed_time = et - st
 
-                # print('Best state: ')
-                # print_matrix(max_move[0], res[1] - 1)
-
-                print('Best move: ', max_move[2], max_move[3])
-                print('Best table: ', max_move[0])
-                print('Move estimated price: ', max_move[1])
+                print('Computer move: ', max_move[2], max_move[3])
                 print('Execution time: ', elapsed_time, 'secconds')
 
+                # Postavljanje figure na dobijenu poziciju:
+                # Postavljanje figure u tabeli u memoriji i iscrtavanje figure na korisnickom prikazu:
                 piece_set = False
                 piece_set = set_figure(WIN, (max_move[2], max_move[3]), player, move_counter, board, dims)
 
+                # Promena narednog igraca (min/max)
                 player = not player
+
+                # Povecanje brojaca poteza
                 move_counter = move_counter + 1
+                
+                # Provera da li smo dosli do kraja igre?
                 run = not is_end(player, board)
+
+                # Promena narednog igraca (covek/racunar)
                 computer_move = not computer_move
-                # print("run:", run)
+                
 
         pygame.display.update()
 
-    # time.sleep(3)
+    # Stampanje pobednika i kraj igre:
     winer = "Human" if computer_move else "Computer"
 
     pygame.draw.rect(WIN, MENU_BACKGROUND_COLOR, (2, dims.HEIGHT // 2 - dims.cell_size // 2, dims.WIDTH - 4, dims.cell_size), 0, 5)
@@ -104,6 +137,8 @@ def main(dims: Dims) -> None:
 
     pygame.display.update()
 
+    # Igra se ne zatvara sama, vec moramo da kliknemo na X da bi se zatvorila
+    # Implementirano cisto da bi se videlo neko vreme ko je pobednik, nije preko potreban deo koda;
     exit_loop = True
     while exit_loop:
         clock.tick(FPS)
@@ -118,12 +153,12 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
 
     win.fill(BACKGROUND)
 
+    # Postavljanje default vrednosti koje ce se kasnije popuniti korisnickim unosom:
     first_player: bool = False
     board_size: int = 0
     quit_event: bool = False
     got_player: bool = False
     got_size: bool = False
-    
 
     # Forma za odabir igraca:
     pygame.draw.rect(win, MENU_BACKGROUND_COLOR, (dims.WIDTH // 10, dims.HEIGHT // 8, (dims.WIDTH // 10 * 8), (dims.HEIGHT // 8 * 6)), 0, 5)
@@ -231,11 +266,11 @@ def init_game(win, clock, dims: Dims) -> tuple[bool, int, Dims] or None:
                     size_rect.center = (dims.WIDTH // 2 - 2 * dims.cell_size + dims.cell_size // 2, dims.HEIGHT // 2 + dims.cell_size + dims.cell_size // 2)
                     win.blit(size, size_rect)
 
-                # ako je pritiskom na enter korisnik potvrdio pocetak igre:
+                # Ako je pritiskom na enter korisnik potvrdio pocetak igre:
                 elif event.key == pygame.K_RETURN:
                     got_size = True
             
-            # ako je korisnik misem kliknuo na pocetak igre?
+            # Ako je korisnik misem kliknuo na pocetak igre?
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
                 if (pos[0] >= dims.WIDTH // 2 + dims.cell_size + dims.cell_size // 2 and pos[0] <= dims.WIDTH // 2 + dims.cell_size + dims.cell_size // 2 + 2 * dims.cell_size and pos[1] >= dims.HEIGHT // 2 + dims.cell_size and pos[1] <= dims.HEIGHT // 2 + 2 * dims.cell_size):
@@ -418,61 +453,21 @@ def check_move(player: bool, table: list[list[str]], x: int, y: int) -> bool:
         else:
             return False
 
-
+# Funkcija koja proverava da li je igracu koji je prosledjen (min/max) preostalo mogucih poteza, odnosno da li
+# smo dosli do kraja igre:
 def is_end(player: bool, table: list[list[str]]) -> bool:
-    """
-    Funkcija koja vraca vrednost true ukoliko nema vise poteza za trenutnog igraca:
-    """
     for i in range(0, len(table)):
         for j in range(0, len(table[i])):
             if (table[i][j]) == ' ' and (check_move(player, table, i, j)):
                return False
     return True
 
-# FIXME: remove
-# Stanje u grafu predstavljamo preko matrice stanja, e sad, zbog limitacije da matrica ne moze da bude 
-# kljuc u dict objektu, moramo nekako drugacije da predstavimo matricu, pa je string jedno od resenja koje
-# mozemo da iskoristimo;
 
-# Pretvara matricu u string:
-def matrix_to_string(mat: list[list[str]],  rows: int, cols: int) -> str:
-    data: str = ''
-    for i in range(0, rows):
-        for j in range(0, cols):
-            data += mat[i][j]
-
-    return data
-
-# Pretvara string u matricu zadatih dimenzija:
-def string_to_matrix(str: str, rows: int, cols: int) -> list[list[str]]:
-    mat = list()
-    for i in range(0, rows):
-        mat.append(list())
-        for j in range(0, cols):
-            mat[i].append(str[i * rows + j])
-    
-    return mat
-
-# def print_matrix(state: list[list[str]], dim) -> None:
-#     for x in range(dim, 0, -1):
-#         row_str: str = ""
-#         for y in range(0, dim, +1):
-#             row_str = state[x][y] + ' ' + row_str
-#         print(row_str)
-
-# FIXME: remove
-
-# Generisemo sva moguca stanja u koja moze da predje tabela na osnuvo prosledjenog stanja
+# Generisemo sva moguca stanja u koja moze da predje tabela na osnovu prosledjenog stanja
 # i informacije ko sledeci igra;
-# [player == True]  -> X 
+# [player ==  True] -> X 
 # [player == False] -> O
 def possible_states(table: list[list[str]], dim: int, player: bool) -> list[tuple[list[list[str]], int, int]] or None:
-    """
-    Funkcija koja generise listu svih mogucih stanja u koje mozemo da predjemo iz prosledjenog stanja:
-    \t*table: list[list[str]] - stanje na osnovu koga generisemo nova
-    \t*dim: int - dimenzija tabele
-    \t*player: bool - da li je na redu igrac X?
-    """
     # Cuvamo sva moguca stanja u koja moze da predje trenutno stanje:
     states: list = list()
 
@@ -495,6 +490,7 @@ def possible_states(table: list[list[str]], dim: int, player: bool) -> list[tupl
                 # Dodajemo stanje u listu mogucih:
                 states.append((new_table, x, y))
     
+    # Da ne bi vratio praznu listu, vec podatak tipa None ukoliko nema mogucih stanja:
     if states:
         return states
     else:
@@ -503,20 +499,11 @@ def possible_states(table: list[list[str]], dim: int, player: bool) -> list[tupl
 # Funkcija koja vrsi evaluaciju prosledjenog stanja tabele i igraca koji je sledeci na redu:
 # Sto manja vrednost, to bolje!
 def evaluate_state(state: list[list[str]], player: bool, dim: int) -> int:
-    """
-    Racunamo koliko ima mogucih poteza protivnik\n
-    state: list[list[str]] - tabela stanja koju proveravamo/ocenjujemo
-    player: bool - da li je igrac X na redu? (max fiksno)
-    dim: int - dimenzija tabele
-    """
 
-    # state_count = dim * dim
+    # Heuristika se racuna drugacije za min i max igraca: 
     state_count = dim * dim if not player else 0
     step = -1 if not player else 1
-    # state_count = 0
-    # step = 1
 
-    # state_count = 0
     for x in range(0, dim):
         for y in range(0, dim):
             if state[x][y] == ' ' and check_move(player, state, x, y):
@@ -527,16 +514,6 @@ def evaluate_state(state: list[list[str]], player: bool, dim: int) -> int:
 
 # Funkcija koju zovemo kada je u stablu pretrage red na max igraca:
 def max_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim: int, x_pos: int, y_pos: int) -> tuple[list[list[str]], int, int, int]:
-    """
-    Funkcija koju pozivamo u slucaju da je na redu igrac X (permanentno Max):
-    \t*state: list[list[str]] - stanje koje obradjujemo
-    \t*depth: int - dubina trenutnog stanja
-    \t*alpha: ??? - najbolji potez za X (Max)
-    \t*beta: ??? - najbolji potez za O (Min)
-    \t*player: bool - da li je igrac X (Max) na redu?
-    \t*dim: int - dimenzija tabele
-    \t*x_pos && y_pos: int - pozicije na kojima smo postavili figuru u prethodnom koraku (u stanju koje smo poslali u funkciju) # inicijalno None
-    """
 
     # Da ne bi generisali bezveze ukoliko smo dosli do max dubine:
     if depth == 0:
@@ -550,29 +527,16 @@ def max_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
         return (state, evaluate_state(state, player, dim), x_pos, y_pos)
 
     # Obradjujemo listu mogucih stanja:
-    # best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
     for st in state_list:
         alpha = max(alpha, min_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         if alpha[1] >= beta[1] and check_move(player, state, beta[2], beta[3]):
             return (beta[0], evaluate_state(beta[0], player, dim), beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
 
     return (alpha[0], evaluate_state(alpha[0], player, dim), alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
-    # return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
-    # return (state, alpha[1], alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
 
 
 # Funkcija koju zovemo kada je u stablu pretrage red na min igraca:
 def min_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim: int, x_pos: int, y_pos: int) -> tuple[list[list[str]], int, int, int]:
-    """
-    Funkcija koju pozivamo u slucaju da je na redu igrac O (permanentno Min):
-    \t*state: list[list[str]] - stanje koje obradjujemo
-    \t*depth: int - dubina trenutnog stanja
-    \t*alpha: ??? - najbolji potez za X (Max)
-    \t*beta: ??? - najbolji potez za O (Min)
-    \t*player: bool - da li je igrac X (Max) na redu?
-    \t*dim: int - dimenzija tabele
-    \t*x_pos && y_pos: int - pozicije na kojima smo postavili figuru u prethodnom koraku (u stanju koje smo poslali u funkciju) # inicijalno None
-    """
 
     # Da ne bi generisali bezveze ukoliko smo dosli do max dubine:
     if depth == 0:
@@ -586,36 +550,19 @@ def min_value(state: list[list[str]], depth: int, alpha, beta, player: bool, dim
         return (state, evaluate_state(state, player, dim), x_pos, y_pos)
 
     # Obradjujemo listu mogucih stanja:
-    # best_state = (state_list[0][0], evaluate_state(state_list[0][0], player, dim), state_list[0][1], state_list[0][2])
     for st in state_list:
-        # best_state = min(best_state, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         beta = min(beta, max_value(st[0], depth - 1, alpha, beta, not player, dim, st[1], st[2]), key = lambda x: x[1])
         if beta[1] <= alpha[1] and check_move(player, state, alpha[2], alpha[3]):
             return (alpha[0], evaluate_state(alpha[0], player, dim), alpha[2] if x_pos == None else x_pos, alpha[3] if y_pos == None else y_pos)
-        # if best_state[1] >= beta:
-        #     return tuple()
     
-    # return (state, beta[1], beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
-    # return (state_list[0], evaluate_state(state, player, dim), beta[2], beta[3])
     return (beta[0], evaluate_state(beta[0], player, dim), beta[2] if x_pos == None else x_pos, beta[3] if y_pos == None else y_pos)
-
-    # return beta
-    # return (state, best_state[1], best_state[2] if x_pos == None else x_pos, best_state[3] if y_pos == None else y_pos)
 
 
 # Pokretanje min-max algoritma, mada posto je igrac X (racunar) uvek max, poziva se samo max_value:
 def min_max(state: list[list[str]], player: bool, depth: int, dim: int) -> tuple[list[list[str]], int, int, int]:
-    """
-    Funkcija koju zovemo za inicijalizaciju min-max algoritma
-    \t*state: list[list[str]] - trenutno stanje tabele
-    \t*player: bool - da li je na redu igrac X (Max)
-    \t*depth: int - dubina do koje trazimo moguce prelazi
-    \t*dim: int - dimenzija tabele
-    """
     if player:
         return max_value(state, depth, (state, -1000, 0, 0), (state, 1000, 0, 0), player, dim, None, None)
     else:
         return min_value(state, depth, (state, -1000, 0, 0), (state, 1000, 0, 0), player, dim, None, None)
-
 
 main(dims)
